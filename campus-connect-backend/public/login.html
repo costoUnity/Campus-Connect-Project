@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .login-container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      font-size: 14px;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .button:hover {
+      background-color: #45a049;
+    }
+    .error-msg {
+      color: red;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+    .welcome-msg {
+      color: green;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+    .loading-msg {
+      color: #888;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>Login</h2>
+
+    <form id="loginForm">
+      <div id="error-msg" class="error-msg"></div>
+      <div id="welcome-msg" class="welcome-msg"></div>
+      <div id="loading-msg" class="loading-msg"></div>
+
+      <div class="input-group">
+        <label for="regNumber">Reg Number</label>
+        <input type="text" id="regNumber" placeholder="BIT/123/2023" required />
+      </div>
+
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" required />
+      </div>
+
+      <button type="submit" class="button">Login</button>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const errorMsg = document.getElementById("error-msg");
+    const welcomeMsg = document.getElementById("welcome-msg");
+    const loadingMsg = document.getElementById("loading-msg");
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault(); // ✅ prevent page refresh
+
+      errorMsg.innerText = "";
+      welcomeMsg.innerText = "";
+      loadingMsg.innerText = "";
+
+      const regNumber = document.getElementById("regNumber").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      // ✅ Validate regNumber format using RegEx
+      const regNumberPattern = /^BIT\/\d{3}\/2023$/;
+      if (!regNumber || !password) {
+        errorMsg.innerText = "Please fill in all fields.";
+        return;
+      }
+
+      if (!regNumberPattern.test(regNumber)) {
+        errorMsg.innerText = "Invalid registration number format (e.g., BIT/123/2023)";
+        return;
+      }
+
+      // ✅ Show loading message
+      loadingMsg.innerText = "Logging in...";
+
+      fetch("http://localhost:5020/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regNumber, password })
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          loadingMsg.innerText = ""; // remove loading msg
+
+          if (data.success) {
+            welcomeMsg.innerText = `Welcome, ${data.name}! 🎉`;
+            localStorage.setItem("user", JSON.stringify({
+  name: data.name,
+  regNumber: regNumber,
+  group: data.group
+}));
+
+            setTimeout(() => {
+              window.location.href = `dashboard.html?group=${data.group}`;
+            }, 1500);
+          } else {
+            errorMsg.innerText = data.message;
+          }
+        })
+        .catch((err) => {
+          loadingMsg.innerText = "";
+          console.error("Error:", err);
+          errorMsg.innerText = "Something went wrong. Please try again.";
+        });
+    });
+  </script>
+</body>
+</html>

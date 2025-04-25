@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group Info</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ece5dd;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background-color: #075E54;
+      color: white;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .content {
+      padding: 20px;
+      flex: 1;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section h4 {
+      margin: 0 0 10px;
+      color: #075E54;
+    }
+
+    .member {
+      padding: 8px 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .admin {
+      font-weight: bold;
+      color: #075E54;
+    }
+
+    .back-btn {
+      background-color: #ddd;
+      color: #000;
+      padding: 10px;
+      text-align: center;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar" id="groupTitle">Group Info</div>
+    <div class="content">
+      <div class="section">
+        <h4>Group Name</h4>
+        <div id="groupName">Loading...</div>
+      </div>
+
+      <div class="section">
+        <h4>Description</h4>
+        <div id="groupDescription">Loading...</div>
+      </div>
+
+      <div class="section">
+        <h4>Members (<span id="memberCount">0</span>)</h4>
+        <div id="membersList">Loading...</div>
+      </div>
+
+      <a class="back-btn" href="javascript:history.back()">⬅ Back to Chat</a>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const group = urlParams.get("group");
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user || !group) {
+      window.location.href = "/dashboard.html";
+    }
+
+    document.getElementById("groupTitle").innerText = `${group} - Info`;
+
+    async function loadGroupInfo() {
+      const res = await fetch(`http://localhost:5020/api/group-info/${group}`);
+      const data = await res.json();
+
+      if (data.success) {
+        document.getElementById("groupName").innerText = data.group.name;
+        document.getElementById("groupDescription").innerText = data.group.description;
+        document.getElementById("memberCount").innerText = data.group.members.length;
+
+        const membersList = document.getElementById("membersList");
+        membersList.innerHTML = "";
+
+        data.group.members.forEach((member, index) => {
+          const div = document.createElement("div");
+          div.className = "member";
+          if (index === 0) {
+            div.classList.add("admin");
+            div.innerText = `${member.name} (Admin)`;
+          } else {
+            div.innerText = member.name;
+          }
+          membersList.appendChild(div);
+        });
+      } else {
+        document.getElementById("groupName").innerText = "Error loading group info.";
+      }
+    }
+
+    loadGroupInfo();
+  </script>
+</body>
+</html>

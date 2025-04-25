@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile - Campus Connect</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ece5dd;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .profile-container {
+      width: 100%;
+      max-width: 420px;
+      background-color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background-color: #075E54;
+      color: white;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .profile-content {
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background-color: #ccc;
+      background-size: cover;
+      background-position: center;
+      margin-bottom: 20px;
+    }
+
+    .info {
+      font-size: 16px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #075E54;
+    }
+
+    .edit-btn {
+      margin-top: 30px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .edit-btn:hover {
+      background-color: #3e8e41;
+    }
+  </style>
+</head>
+<body>
+  <div class="profile-container">
+    <div class="topbar">My Profile</div>
+    <div class="profile-content">
+      <div class="avatar" id="profilePic"></div>
+      <div class="info"><span class="label">Name:</span> <span id="name">Loading...</span></div>
+      <div class="info"><span class="label">Reg Number:</span> <span id="regNumber"></span></div>
+      <div class="info"><span class="label">Department:</span> <span id="department"></span></div>
+      <div class="info"><span class="label">Faculty:</span> <span id="faculty"></span></div>
+
+      <button class="edit-btn" onclick="goBack()">Back to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
+      window.location.href = "/login.html";
+    }
+
+    document.getElementById("name").innerText = user.name;
+    document.getElementById("regNumber").innerText = user.regNumber;
+    document.getElementById("department").innerText = user.group.department;
+    document.getElementById("faculty").innerText = user.group.faculty;
+
+    // Default avatar (in future can be made dynamic)
+    document.getElementById("profilePic").style.backgroundImage = "url('https://i.imgur.com/OC5B7Ml.png')";
+
+    function goBack() {
+      window.location.href = "/dashboard.html";
+    }
+  </script>
+</body>
+</html>
