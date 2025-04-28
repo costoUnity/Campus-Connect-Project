@@ -1,6 +1,17 @@
 // 1. Load required packages
 const express = require("express");
 const cors = require("cors");
+//loading MongoDB
+const mongoose = require('mongoose');
+
+// ⚡Replace <password> and <dbname> properly in your connection string
+const mongoURI = "mongodb+srv://campusadmin:campusconnect@campusconnectdb.i94nqjc.mongodb.net/?retryWrites=true&w=majority&appName=CampusConnectDB";
+
+mongoose.connect(mongoURI, {
+  
+})
+.then(() => console.log("✅ Connected to MongoDB Atlas"))
+.catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // 2. Create a new express app
 const app = express();
@@ -208,6 +219,18 @@ app.get("/api/group-info/:groupName", (req, res) => {
       description: "Class group for BIT 2221 unit",
       members: [
         { name: "Class Rep John" }, // admin
+        { name: "Jane Smith" },
+        { name: "Mark Omondi" },
+        { name: "Alice Wanjiru" },
+        { name: "Jane Smith" },
+        { name: "Mark Omondi" },
+        { name: "Alice Wanjiru" },
+        { name: "Jane Smith" },
+        { name: "Mark Omondi" },
+        { name: "Alice Wanjiru" },
+        { name: "Jane Smith" },
+        { name: "Mark Omondi" },
+        { name: "Alice Wanjiru" },
         { name: "Jane Smith" },
         { name: "Mark Omondi" },
         { name: "Alice Wanjiru" }
