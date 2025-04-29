@@ -4,8 +4,15 @@ const cors = require("cors");
 //loading MongoDB
 const mongoose = require('mongoose');
 
+//intergrate with the student table in mongoDB atlass
+//const Student = require("./models/Student"); // ← if models is inside Backend
+
+const Student = require("./models/Student");
+
+
 // ⚡Replace <password> and <dbname> properly in your connection string
-const mongoURI = "mongodb+srv://campusadmin:campusconnect@campusconnectdb.i94nqjc.mongodb.net/?retryWrites=true&w=majority&appName=CampusConnectDB";
+const mongoURI = "mongodb+srv://campusadmin:campusconnect@campusconnectdb.i94nqjc.mongodb.net/campusconnect?retryWrites=true&w=majority&appName=CampusConnectDB";
+//const mongoURI = "mongodb+srv://campusadmin:campusconnect@campusconnectdb.i94nqjc.mongodb.net/students?retryWrites=true&w=majority&appName=CampusConnectDB";
 
 mongoose.connect(mongoURI, {
   
@@ -28,48 +35,6 @@ app.use(express.json());
 app.use(express.static("public"));
 
 
-// 6. Dummy "database" — list of students
-const students = [
-  {
-    regNumber: "BIT/123/2023",
-    name: "John Doe",
-    password: "1234",
-    group: {
-      name: "BIT2221",
-      year: "2023",
-      department: "Computer Science",
-      faculty: "ICT"
-    }
-  },
-  {
-    regNumber: "BIT/456/2023",
-    name: "Jane Smith",
-    password: "abcd",
-    group: {
-      name: "BIT2221",
-      year: "2023",
-      department: "Computer Science",
-      faculty: "ICT"
-    },
-    group: {
-      name: "BIT2223",
-      year: "2025",
-      department: "Computer Science",
-      faculty: "CIT"
-    }
-  },
-  {
-    regNumber: "BBM/789/2023",
-    name: "Alice Muthoni",
-    password: "pass123",
-    group: {
-      name: "BBM1102",
-      year: "2023",
-      department: "Business Management",
-      faculty: "Business"
-    }
-  }
-];
 
 // In-memory message storage by group
 const groupMessages = {
@@ -110,37 +75,67 @@ app.get("/", (req, res) => {
   
 
 // 7. Your real API route (POST) for login
-app.post("/api/login", (req, res) => {
-  console.log("🔐 Login attempt...");
-
+app.post("/api/login", async (req, res) => {
   const { regNumber, password } = req.body;
+  console.log("Trying to log in with:", regNumber);
 
-  // Find the student
-  const student = students.find((stu) => stu.regNumber === regNumber);
 
-  if (student) {
-    if (student.password === password) {
-      // ✅ Success
-      res.json({
-        success: true,
-        name: student.name,
-        group: student.group
-      });
-    } else {
-      // ❌ Wrong password
-      res.json({
-        success: false,
-        message: "Incorrect password"
-      });
+  try {
+    const student = await Student.findOne({ regNumber });
+
+    if (!student) {
+      return res.json({ success: false, message: "Student not found in database " });
     }
-  } else {
-    // ❌ Student not found
+
+    if (student.password !== password) {
+      return res.json({ success: false, message: "Incorrect password" });
+    }
+
     res.json({
-      success: false,
-      message: "Student not found"
+      success: true,
+      name: student.name,
+      regNumber: student.regNumber,
+      group: student.group
     });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+//and api login to test if there was a connection to database
+// app.post("/api/login", async (req, res) => {
+//   const { regNumber, password } = req.body;
+//   console.log("Trying to log in with:", regNumber);
+
+//   try {
+//     // TEMP: Show all students in the DB
+//     const allStudents = await Student.find({});
+//     console.log("Students in DB:", allStudents);
+
+//     const student = await Student.findOne({ regNumber });
+
+//     if (!student) {
+//       console.log("No matching student for:", regNumber);
+//       return res.json({ success: false, message: "Student not found in database " });
+//     }
+
+//     if (student.password !== password) {
+//       return res.json({ success: false, message: "Incorrect password" });
+//     }
+
+//     res.json({
+//       success: true,
+//       name: student.name,
+//       regNumber: student.regNumber,
+//       group: student.group
+//     });
+//   } catch (err) {
+//     console.error("Login error:", err);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// });
+
 
 //API for Dashboard, for fetching group
 app.get("/api/group/:groupName", (req, res) => {
