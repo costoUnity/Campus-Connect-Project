@@ -1,6 +1,9 @@
 // 1. Load required packages
 const express = require("express");
 const cors = require("cors");
+
+//File Path
+const path = require("path");
 //loading MongoDB
 const mongoose = require('mongoose');
 
@@ -8,6 +11,9 @@ const mongoose = require('mongoose');
 //const Student = require("./models/Student"); // ← if models is inside Backend
 
 const Student = require("./models/Student");
+
+const Message = require('./models/Message');
+
 
 
 // ⚡Replace <password> and <dbname> properly in your connection string
@@ -36,48 +42,11 @@ app.use(express.static("public"));
 
 
 
-// In-memory message storage by group
-const groupMessages = {
-  BIT2221: [],
-  AllStudents: [],
-  CodingClub: [],
-  BBM1102: []
-};
-
-
-//Student Dummy Group Database
-const groups = [
-  {
-    name: "BIT2221",
-    year: "2023",
-    department: "Computer Science",
-    faculty: "ICT",
-    messages: [
-      {
-        sender: "BIT/123/2023",
-        name: "John Doe",
-        message: "Hey team, class starts at 9!",
-        timestamp: "2024-04-15 09:00"
-      },
-      {
-        sender: "BIT/456/2023",
-        name: "Jane Smith",
-        message: "Thanks for the reminder 🙌",
-        timestamp: "2024-04-15 09:05"
-      }
-    ]
-  }
-];
-
-app.get("/", (req, res) => {
-    res.send("✅ Backend is running!");
-  });
-  
 
 // 7. Your real API route (POST) for login
 app.post("/api/login", async (req, res) => {
   const { regNumber, password } = req.body;
-  console.log("Trying to log in with:", regNumber);
+ // console.log("Trying to log in with:", regNumber);
 
 
   try {
@@ -138,73 +107,57 @@ app.post("/api/login", async (req, res) => {
 
 
 //API for Dashboard, for fetching group
-app.get("/api/group/:groupName", (req, res) => {
-  console.log("Student is accessing a group");
-  const groupName = req.params.groupName;
-  const group = groups.find(g => g.name === groupName);
+const Group = require("./models/Group");
 
-  if (group) {
-    res.json({
-      success: true,
-      group
-    });
-  } else {
-    res.json({
-      success: false,
-      message: "Group not found"
-    });
-  }
-});
-
-app.get("/api/student-groups/:regNumber", (req, res) => {
+app.get("/api/student-groups/:regNumber", async (req, res) => {
   const regNumber = req.params.regNumber;
-  console.log("Looking for student:", regNumber);
-  console.log("API HIT: ", req.params.regNumber);
+  //console.log("Looking for groups where:", regNumber);
 
 
-  const student = students.find(s => s.regNumber === regNumber);
+  try {
+    const groups = await Group.find({ members: regNumber });
 
-  if (!student) {
-    return res.status(404).json({ success: false, message: "Student not found" });
+    if (!groups.length) {
+      return res.json({ success: false, message: "No groups found for this student." });
+    }
+
+    res.json({ success: true, groups });
+  } catch (err) {
+    console.error("Group fetch error:", err);
+    res.status(500).json({ success: false, message: "Server error." });
   }
-
-  // Sample group assignment
-  const allGroups = [
-    { name: student.group.name, type: "class" },
-    { name: "AllStudents", type: "school" },
-    { name: "CodingClub", type: "club" }
-  ];
-
-  res.json({
-    success: true,
-    groups: allGroups
-  });
 });
+
+
+// app.get("/api/student-groups/:regNumber", (req, res) => {
+//   const regNumber = req.params.regNumber;
+//   console.log("Looking for student:", regNumber);
+//   console.log("API HIT: ", req.params.regNumber);
+
+
+//   const student = students.find(s => s.regNumber === regNumber);
+
+//   if (!student) {
+//     return res.status(404).json({ success: false, message: "Student not found" });
+//   }
+
+  
+
+//   res.json({
+//     success: true,
+//     groups: allGroups
+//   });
+// });
 
 app.get("/", (req, res) => {
   res.send("✅ Backend is working!");
 });
 
+
 // API: Get messages for a group
-app.get("/api/group/:groupName", (req, res) => {
-  const groupName = req.params.groupName;
-  const messages = groupMessages[groupName] || [];
-  res.json({ success: true, group: { name: groupName, messages } });
-});
-
-// API: Send a message to a group
-app.post("/api/send", (req, res) => {
-  const { regNumber, name, group, message } = req.body;
-  const timestamp = new Date().toLocaleTimeString();
-
-  if (!groupMessages[group]) groupMessages[group] = [];
-
-  groupMessages[group].push({ regNumber, name, sender: regNumber, message, timestamp });
-
-  res.json({ success: true });
-});
 
 
+// api for getting group info
 app.get("/api/group-info/:groupName", (req, res) => {
   const groupName = req.params.groupName;
 
@@ -278,6 +231,50 @@ app.get("/api/group-info/:groupName", (req, res) => {
     res.json({ success: false, message: "Group not found" });
   }
 });
+
+
+// Send message API endpoint
+app.post("/api/send", async (req, res) => {
+  const { regNumber, name, group, message } = req.body;
+
+  if (!regNumber || !name || !group || !message) {
+    return res.status(400).json({ success: false, error: "Missing required fields" });
+  }
+
+  try {
+    const newMessage = new Message({
+      sender: regNumber,
+      name,
+      group,
+      message,
+    });
+
+    await newMessage.save();
+
+    res.json({ success: true, message: "Message saved successfully!" });
+  } catch (err) {
+    console.error("Error saving message:", err.message);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+
+
+// Fetch messages for the group
+app.get('/api/group/:groupName', async (req, res) => {
+  const groupName = req.params.groupName;
+
+  try {
+    const messages = await Message.find({ group: groupName }).sort({ timestamp: 1 }); // oldest first
+    res.json({ success: true, group: { name: groupName, messages } });
+  } catch (err) {
+    console.error("Error fetching messages:", err.message);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+
+
 
 // 8. Start the server
 app.listen(port, () => {
