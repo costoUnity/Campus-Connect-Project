@@ -58,6 +58,7 @@
 
     .message.other {
       align-self: flex-start;
+      background-color: white;
     }
 
     .timestamp {
@@ -124,17 +125,26 @@
   const container = document.getElementById("messageList");
   container.innerHTML = ""; // Clear current messages
 
+  //function to trim the time stamp
+  function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+
   if (data.success) {
     data.group.messages.forEach((msg) => {
-      const div = document.createElement("div");
-      div.classList.add("message");
-      div.classList.add(msg.sender.regNumber === user.regNumber ? "you" : "other");
-      div.innerHTML = `
-        <div><strong>${msg.sender.name}</strong></div>
-        <div>${msg.message}</div> <!-- Correctly use 'msg.message' -->
-        <div class="timestamp">${new Date(msg.timestamp).toLocaleString()}</div> <!-- Format timestamp properly -->
-      `;
-      container.appendChild(div);
+  const div = document.createElement("div");
+  div.classList.add("message");
+  div.classList.add(msg.sender === user.regNumber ? "you" : "other");
+  div.innerHTML = `
+    <div><strong>${msg.name}</strong></div>
+    <div>${msg.message}</div>
+    <div class="timestamp">${formatTime(msg.timestamp)}</div>
+  `;
+  container.appendChild(div);
     });
 
     // Auto-scroll to bottom
@@ -178,6 +188,15 @@
     function goToGroupInfo() {
       window.location.href = `groupinfo.html?group=${group}`; // Navigate to group info page
     }
+
+    //Enter  as the send key
+    document.getElementById("messageInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    sendMessage();
+  }
+});
+
+
   </script>
 </body>
 </html>

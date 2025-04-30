@@ -157,80 +157,7 @@ app.get("/", (req, res) => {
 // API: Get messages for a group
 
 
-// api for getting group info
-app.get("/api/group-info/:groupName", (req, res) => {
-  const groupName = req.params.groupName;
 
-  const dummyInfo = {
-    BIT2221: {
-      name: "BIT2221",
-      description: "Class group for BIT 2221 unit",
-      members: [
-        { name: "Class Rep John" }, // admin
-        { name: "Jane Smith" },
-        { name: "Mark Omondi" },
-        { name: "Alice Wanjiru" },
-        { name: "Jane Smith" },
-        { name: "Mark Omondi" },
-        { name: "Alice Wanjiru" },
-        { name: "Jane Smith" },
-        { name: "Mark Omondi" },
-        { name: "Alice Wanjiru" },
-        { name: "Jane Smith" },
-        { name: "Mark Omondi" },
-        { name: "Alice Wanjiru" },
-        { name: "Jane Smith" },
-        { name: "Mark Omondi" },
-        { name: "Alice Wanjiru" }
-      ]
-    },
-    AllStudents: {
-      name: "AllStudents",
-      description: "Official communication group for all students",
-      members: [
-        { name: "Dean's Office" }, // admin
-        { name: "John Doe" },
-        { name: "Alice Muthoni" }
-      ]
-    },
-    CodingClub: {
-      name: "CodingClub",
-      description: "For students passionate about programming and tech",
-      members: [
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" },
-        { name: "Club President Brian" },
-        { name: "Jane Smith" },
-        { name: "Alice Muthoni" }
-        
-      ]
-    }
-  };
-
-  const group = dummyInfo[groupName];
-
-  if (group) {
-    res.json({ success: true, group });
-  } else {
-    res.json({ success: false, message: "Group not found" });
-  }
-});
 
 
 // Send message API endpoint
@@ -270,6 +197,32 @@ app.get('/api/group/:groupName', async (req, res) => {
   } catch (err) {
     console.error("Error fetching messages:", err.message);
     res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+//API to fetch the group info
+// Replace this dummy info version:
+app.get("/api/group-info/:groupName", async (req, res) => {
+  const groupName = req.params.groupName;
+
+  try {
+    const group = await Group.findOne({ name: groupName });
+
+    if (!group) {
+      return res.json({ success: false, message: "Group not found" });
+    }
+
+    res.json({
+      success: true,
+      group: {
+        name: group.name,
+        description: `This is the ${group.name} group`, // Add description if you want
+        members: group.members.map(name => ({ name })) // Convert string[] to object[]
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching group info:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
