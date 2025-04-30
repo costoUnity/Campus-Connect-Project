@@ -58,6 +58,7 @@
 
     .message.other {
       align-self: flex-start;
+      background-color: white;
     }
 
     .timestamp {
@@ -113,43 +114,60 @@
     const group = urlParams.get("group");
 
     if (!user || !group) {
-      window.location.href = "/dashboard.html";
+      window.location.href = "/dashboard.html"; // Redirect if user or group not found
     }
 
     document.getElementById("chatTitle").innerText = group;
 
     async function loadMessages() {
-      const res = await fetch(`http://localhost:5020/api/group/${group}`);
-      const data = await res.json();
-      const container = document.getElementById("messageList");
-      container.innerHTML = "";
+  const res = await fetch(`http://localhost:5020/api/group/${group}`); // Fetch messages for the group
+  const data = await res.json();
+  const container = document.getElementById("messageList");
+  container.innerHTML = ""; // Clear current messages
 
-      if (data.success) {
-        data.group.messages.forEach((msg) => {
-          const div = document.createElement("div");
-          div.classList.add("message");
-          div.classList.add(msg.sender === user.regNumber ? "you" : "other");
-          div.innerHTML = `
-            <div><strong>${msg.name}</strong></div>
-            <div>${msg.message}</div>
-            <div class="timestamp">${msg.timestamp}</div>
-          `;
-          container.appendChild(div);
-        });
+  //function to trim the time stamp
+  function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
 
-        // Auto-scroll to bottom
-        container.scrollTop = container.scrollHeight;
-      }
-    }
 
-    // send message to UI
+  if (data.success) {
+    data.group.messages.forEach((msg) => {
+  const div = document.createElement("div");
+  div.classList.add("message");
+  div.classList.add(msg.sender === user.regNumber ? "you" : "other");
+  div.innerHTML = `
+    <div><strong>${msg.name}</strong></div>
+    <div>${msg.message}</div>
+    <div class="timestamp">${formatTime(msg.timestamp)}</div>
+  `;
+  container.appendChild(div);
+    });
+
+    // Auto-scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
 
     async function sendMessage() {
       const input = document.getElementById("messageInput");
       const text = input.value.trim();
-      if (!text) return;
+      if (!text) return; // Don't send if input is empty
 
-      await fetch("http://localhost:5020/api/send", {
+      //check the log to see if it works
+      console.log("📤 Sending message:", {
+  regNumber: user.regNumber,
+  name: user.name,
+  group,
+  message: text,
+});
+
+
+      await fetch("http://localhost:5020/api/send", {  // POST to send the message
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -160,16 +178,23 @@
         }),
       });
 
-      input.value = "";
-      loadMessages();
+      input.value = ""; // Clear input field
+      loadMessages(); // Reload messages after sending
     }
 
-    loadMessages();
-    setInterval(loadMessages, 3000); // auto-refresh every 3 seconds
-    
-  function goToGroupInfo() {
-    window.location.href = `groupinfo.html?group=${group}`;
+    loadMessages(); // Load messages initially
+    setInterval(loadMessages, 3000); // Auto-refresh every 3 seconds
+
+    function goToGroupInfo() {
+      window.location.href = `groupinfo.html?group=${group}`; // Navigate to group info page
+    }
+
+    //Enter  as the send key
+    document.getElementById("messageInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    sendMessage();
   }
+});
 
 
   </script>
