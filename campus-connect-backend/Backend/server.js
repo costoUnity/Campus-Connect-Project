@@ -227,6 +227,29 @@ app.get("/api/group-info/:groupName", async (req, res) => {
 });
 
 
+// Update group description
+app.put("/api/group-description/:groupName", async (req, res) => {
+  const groupName = req.params.groupName;
+  const { description } = req.body;
+
+  try {
+    const group = await Group.findOneAndUpdate(
+      { name: groupName },
+      { description },
+      { new: true }
+    );
+
+    if (group) {
+      res.json({ success: true, message: "Description updated" });
+    } else {
+      res.json({ success: false, message: "Group not found" });
+    }
+  } catch (err) {
+    console.error("Error updating group description:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 
 
 // 8. Start the server

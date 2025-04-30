@@ -74,9 +74,11 @@
       </div>
 
       <div class="section">
-        <h4>Description</h4>
+        <h4>Description <span id="editDescBtn" style="cursor: pointer;">✏️</span></h4>
         <div id="groupDescription">Loading...</div>
+        <input type="text" id="editDescriptionInput" style="display: none; width: 100%;" />
       </div>
+      
 
       <div class="section">
         <h4>Members (<span id="memberCount">0</span>)</h4>
@@ -91,25 +93,22 @@
     const urlParams = new URLSearchParams(window.location.search);
     const group = urlParams.get("group");
     const user = JSON.parse(localStorage.getItem("user"));
-
-    if (!user || !group) {
-      window.location.href = "/dashboard.html";
-    }
-
+  
     document.getElementById("groupTitle").innerText = `${group} - Info`;
-
+  
     async function loadGroupInfo() {
       const res = await fetch(`http://localhost:5020/api/group-info/${group}`);
       const data = await res.json();
-
+  
       if (data.success) {
         document.getElementById("groupName").innerText = data.group.name;
         document.getElementById("groupDescription").innerText = data.group.description;
+        document.getElementById("editDescriptionInput").value = data.group.description;
         document.getElementById("memberCount").innerText = data.group.members.length;
-
+  
         const membersList = document.getElementById("membersList");
         membersList.innerHTML = "";
-
+  
         data.group.members.forEach((member, index) => {
           const div = document.createElement("div");
           div.className = "member";
@@ -121,12 +120,43 @@
           }
           membersList.appendChild(div);
         });
-      } else {
-        document.getElementById("groupName").innerText = "Error loading group info.";
       }
     }
-
+  
+    // ✏️ Edit Description Logic
+    const editBtn = document.getElementById("editDescBtn");
+    const descDisplay = document.getElementById("groupDescription");
+    const descInput = document.getElementById("editDescriptionInput");
+  
+    editBtn.addEventListener("click", () => {
+      descDisplay.style.display = "none";
+      descInput.style.display = "block";
+      descInput.focus();
+    });
+  
+    descInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        const newDesc = descInput.value;
+  
+        const res = await fetch(`http://localhost:5020/api/group-description/${group}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: newDesc }),
+        });
+  
+        const data = await res.json();
+        if (data.success) {
+          descDisplay.innerText = newDesc;
+          descDisplay.style.display = "block";
+          descInput.style.display = "none";
+        } else {
+          alert("Failed to update description");
+        }
+      }
+    });
+  
     loadGroupInfo();
   </script>
+  
 </body>
 </html>
