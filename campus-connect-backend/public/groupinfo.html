@@ -95,10 +95,20 @@
     const user = JSON.parse(localStorage.getItem("user"));
   
     document.getElementById("groupTitle").innerText = `${group} - Info`;
+
+    //Log to see if Load GroupInfo works
+    console.log("👀 Calling /api/group-info/" + group);
+
   
     async function loadGroupInfo() {
       const res = await fetch(`http://localhost:5020/api/group-info/${group}`);
       const data = await res.json();
+
+      //log to see the fetched group description
+      console.log("Fetched description:", data.group.description);
+
+      console.log("✅ Got group info response:", data);
+
   
       if (data.success) {
         document.getElementById("groupName").innerText = data.group.name;
@@ -146,12 +156,13 @@
   
         const data = await res.json();
         if (data.success) {
-          descDisplay.innerText = newDesc;
-          descDisplay.style.display = "block";
-          descInput.style.display = "none";
-        } else {
-          alert("Failed to update description");
-        }
+  await loadGroupInfo(); // 🔄 Refresh to load updated description
+  descDisplay.style.display = "block";
+  descInput.style.display = "none";
+} else {
+  alert("Failed to update description");
+}
+
       }
     });
   

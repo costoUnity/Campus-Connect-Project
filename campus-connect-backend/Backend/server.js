@@ -201,7 +201,6 @@ app.get('/api/group/:groupName', async (req, res) => {
 });
 
 //API to fetch the group info
-// Replace this dummy info version:
 app.get("/api/group-info/:groupName", async (req, res) => {
   const groupName = req.params.groupName;
 
@@ -212,19 +211,28 @@ app.get("/api/group-info/:groupName", async (req, res) => {
       return res.json({ success: false, message: "Group not found" });
     }
 
-    res.json({
-      success: true,
-      group: {
-        name: group.name,
-        description: `This is the ${group.name} group`, // Add description if you want
-        members: group.members.map(name => ({ name })) // Convert string[] to object[]
-      }
-    });
+    // Look up member details
+    const detailedMembers = await Promise.all(
+      group.members.map(async (regNumber) => {
+        const student = await Student.findOne({ regNumber });
+        return student ? { name: student.name, regNumber } : { name: "Unknown", regNumber };
+      })
+    );
+
+    const groupWithNames = {
+      name: group.name,
+      description: group.description,
+      members: detailedMembers
+    };
+
+    res.json({ success: true, group: groupWithNames });
+
   } catch (err) {
-    console.error("Error fetching group info:", err.message);
+    console.error("❌ Error fetching group info:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 
 // Update group description
