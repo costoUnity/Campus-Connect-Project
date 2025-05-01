@@ -46,31 +46,75 @@ app.use(express.static("public"));
 // 7. Your real API route (POST) for login
 app.post("/api/login", async (req, res) => {
   const { regNumber, password } = req.body;
- // console.log("Trying to log in with:", regNumber);
-
 
   try {
     const student = await Student.findOne({ regNumber });
 
     if (!student) {
-      return res.json({ success: false, message: "Student not found in database " });
+      return res.json({ success: false, message: "Student not found in database." });
     }
 
     if (student.password !== password) {
       return res.json({ success: false, message: "Incorrect password" });
     }
 
+    // ✅ Extract group info from regNumber e.g. "BIT/456/2023" => "BIT 2023"
+    const parts = regNumber.split("/");
+    const courseCode = parts[0]; // "BIT"
+    const year = parts[2];       // "2023"
+    const groupName = `${courseCode} ${year}`;
+
+    const officialGroup = "Official Campus Group";
+
+    // 🛠️ Ensure class group exists and add student
+    let classGroup = await Group.findOne({ name: groupName });
+    if (!classGroup) {
+      classGroup = new Group({
+        name: groupName,
+        type: "class",
+        description: `Group for ${groupName} students`,
+        admin: regNumber,
+        members: [regNumber],
+        messages: [],
+      });
+      await classGroup.save();
+      console.log(`✅ Created group: ${groupName}`);
+    } else if (!classGroup.members.includes(regNumber)) {
+      classGroup.members.push(regNumber);
+      await classGroup.save();
+    }
+
+    // 🛠️ Ensure official group exists and add student
+    let schoolGroup = await Group.findOne({ name: officialGroup });
+    if (!schoolGroup) {
+      schoolGroup = new Group({
+        name: officialGroup,
+        type: "school",
+        description: "Official announcements from the campus administration",
+        admin: "Dean",
+        members: [regNumber],
+        messages: [],
+      });
+      await schoolGroup.save();
+      console.log(`✅ Created group: ${officialGroup}`);
+    } else if (!schoolGroup.members.includes(regNumber)) {
+      schoolGroup.members.push(regNumber);
+      await schoolGroup.save();
+    }
+
+    // ✅ Login Success
     res.json({
       success: true,
       name: student.name,
       regNumber: student.regNumber,
-      group: student.group
+      group: groupName,
     });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 //and api login to test if there was a connection to database
 // app.post("/api/login", async (req, res) => {

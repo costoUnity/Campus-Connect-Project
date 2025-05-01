@@ -106,7 +106,7 @@
       const password = document.getElementById("password").value.trim();
 
       // ✅ Validate regNumber format using RegEx
-      const regNumberPattern = /^BIT\/\d{3}\/2023$/;
+      const regNumberPattern = /^[A-Z]{3}\/\d{3}\/\d{4}$/;
       if (!regNumber || !password) {
         errorMsg.innerText = "Please fill in all fields.";
         return;
