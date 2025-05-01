@@ -169,25 +169,30 @@
     }
   
     function addMessageToUI(msg) {
-      const container = document.getElementById("messageList");
-  
-      const senderId = msg.sender?.regNumber || msg.regNumber || msg.sender;
-      const senderName = msg.sender?.name || msg.name;
-  
-      const div = document.createElement("div");
-       div.classList.add("message");
-       div.classList.add(senderId === user.regNumber ? "you" : "other");
-       div.setAttribute("data-id", msg._id); // ✅ Attach MongoDB message ID
+  const container = document.getElementById("messageList");
 
-      div.innerHTML = `
-        <div><strong>${senderName}</strong></div>
-        <div>${msg.message}</div>
-        <div class="timestamp">${formatTime(msg.timestamp)}</div>
-      `;
-  
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
+  const senderId = msg.sender?.regNumber || msg.regNumber || msg.sender;
+  const senderName = msg.sender?.name || msg.name;
+
+  const div = document.createElement("div");
+  div.classList.add("message");
+  div.classList.add(senderId === user.regNumber ? "you" : "other");
+  div.setAttribute("data-id", msg._id);
+
+  const isDeleted = msg.deleted;
+
+  div.innerHTML = `
+    ${!isDeleted ? `<div><strong>${senderName}</strong></div>` : ""}
+    <div style="${isDeleted ? 'font-style: italic; color: #888;' : ''}">
+      ${msg.message}
+    </div>
+    <div class="timestamp">${formatTime(msg.timestamp)}</div>
+  `;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
     
     
 
@@ -285,9 +290,18 @@ function handleDelete() {
   }
 }
 
-socket.on("messageDeleted", ({ messageId }) => {
+socket.on("messageDeleted", ({ messageId, placeholder }) => {
   const messageEl = document.querySelector(`[data-id="${messageId}"]`);
-  if (messageEl) messageEl.remove();
+  if (messageEl) {
+    const msgBody = messageEl.querySelector("div:nth-child(2)");
+    msgBody.innerText = placeholder;
+    msgBody.style.fontStyle = "italic";
+    msgBody.style.color = "#888";
+
+    // Optionally hide sender name and timestamp
+    const nameEl = messageEl.querySelector("div:first-child");
+    if (nameEl) nameEl.style.display = "none";
+  }
 });
 
 
