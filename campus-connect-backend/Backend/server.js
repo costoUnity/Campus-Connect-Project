@@ -270,6 +270,20 @@ app.put("/api/group-description/:groupName", async (req, res) => {
   }
 });
 
+//The Delete Message API
+app.delete("/api/message/:id", async (req, res) => {
+  try {
+    const message = await Message.findByIdAndDelete(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting message:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 
 
 // 8. Start the server with Socket.IO support
@@ -298,24 +312,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("sendMessage", async (data) => {
-    const timestamp = Date.now(); // ✅ consistent timestamp
-  
     const newMessage = new Message({
       sender: data.regNumber,
       name: data.name,
       group: data.group,
       message: data.message,
-      timestamp: timestamp, // ✅ Save correct timestamp in DB
     });
   
-    await newMessage.save();
+    const savedMessage = await newMessage.save();
   
     io.to(data.group).emit("newMessage", {
+      _id: savedMessage._id, // ✅ Include the ID
       regNumber: data.regNumber,
       name: data.name,
       group: data.group,
       message: data.message,
-      timestamp: timestamp, // ✅ Send same timestamp to frontend
+      timestamp: savedMessage.timestamp, // use consistent timestamp
     });
   });
 
