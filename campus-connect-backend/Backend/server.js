@@ -331,6 +331,16 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ✅ Add this for real-time deletion
+  socket.on("deleteMessage", async ({ messageId, group }) => {
+    try {
+      await Message.findByIdAndDelete(messageId);
+      io.to(group).emit("messageDeleted", { messageId }); // 🔁 notify others
+    } catch (err) {
+      console.error("❌ Error deleting message:", err);
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("🔌 A user disconnected");
   });

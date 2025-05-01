@@ -280,10 +280,16 @@ document.addEventListener("contextmenu", function (e) {
 
 function handleDelete() {
   if (selectedMessageId) {
-    deleteMessage(selectedMessageId);
+    socket.emit("deleteMessage", { messageId: selectedMessageId, group });
     document.getElementById("contextMenu").style.display = "none";
   }
 }
+
+socket.on("messageDeleted", ({ messageId }) => {
+  const messageEl = document.querySelector(`[data-id="${messageId}"]`);
+  if (messageEl) messageEl.remove();
+});
+
 
 function handleCopy() {
   navigator.clipboard.writeText(selectedMessageText).then(() => {
