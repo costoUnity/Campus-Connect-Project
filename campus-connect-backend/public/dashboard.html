@@ -72,6 +72,35 @@
     overflow-y: auto;
   }
 
+  .group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.group-name {
+  font-weight: bold;
+}
+
+.group-preview {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unread-count {
+  background-color: #25D366;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 6px;
+}
+
+
 </style>
 
 <body>
@@ -132,13 +161,30 @@
             title.textContent = types[type];
             section.appendChild(title);
 
-            grouped[type].forEach(groupName => {
-              const groupDiv = document.createElement("div");
-              groupDiv.classList.add("group");
-              groupDiv.innerText = groupName;
-              groupDiv.onclick = () => goToChat(groupName);
-              section.appendChild(groupDiv);
-            });
+            grouped[type].forEach(async groupName => {
+  const groupDiv = document.createElement("div");
+  groupDiv.classList.add("group");
+
+  // Fetch messages for the group
+  const msgRes = await fetch(`http://localhost:5020/api/group/${groupName}`);
+  const msgData = await msgRes.json();
+  const messages = msgData.success ? msgData.group.messages : [];
+
+  const lastMessage = messages.length ? messages[messages.length - 1].message : "No messages yet";
+  const unreadCount = Math.floor(Math.random() * 5); // 🔁 Replace with real logic later
+
+  groupDiv.innerHTML = `
+    <div class="group-header">
+      <span class="group-name">${groupName}</span>
+      ${unreadCount > 0 ? `<span class="unread-count">${unreadCount}</span>` : ""}
+    </div>
+    <div class="group-preview">${lastMessage}</div>
+  `;
+
+  groupDiv.onclick = () => goToChat(groupName);
+  section.appendChild(groupDiv);
+});
+
 
             container.appendChild(section);
           }

@@ -111,8 +111,6 @@ const Group = require("./models/Group");
 
 app.get("/api/student-groups/:regNumber", async (req, res) => {
   const regNumber = req.params.regNumber;
-  //console.log("Looking for groups where:", regNumber);
-
 
   try {
     const groups = await Group.find({ members: regNumber });
@@ -121,12 +119,26 @@ app.get("/api/student-groups/:regNumber", async (req, res) => {
       return res.json({ success: false, message: "No groups found for this student." });
     }
 
-    res.json({ success: true, groups });
+    // Attach last message from Messages collection
+    const result = await Promise.all(
+      groups.map(async (group) => {
+        const lastMsg = await Message.findOne({ group: group.name }).sort({ timestamp: -1 });
+        return {
+          name: group.name,
+          type: group.type || "class", // fallback
+          lastMessage: lastMsg ? lastMsg.message : "No messages yet",
+          lastTimestamp: lastMsg ? lastMsg.timestamp : null
+        };
+      })
+    );
+
+    res.json({ success: true, groups: result });
   } catch (err) {
     console.error("Group fetch error:", err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
+
 
 
 // app.get("/api/student-groups/:regNumber", (req, res) => {
@@ -260,7 +272,55 @@ app.put("/api/group-description/:groupName", async (req, res) => {
 
 
 
-// 8. Start the server
-app.listen(port, () => {
+// 8. Start the server with Socket.IO support
+const http = require("http");
+const { Server } = require("socket.io");
+
+const server = http.createServer(app); // 👈 Create HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: "*", // ✅ Allow frontend to connect
+    methods: ["GET", "POST"]
+  }
+});
+
+server.listen(port, () => {
   console.log(`Server is listening at http://localhost:${port}`);
 });
+
+// 👇 ADD THIS AFTER all the routes (near the end of server.js):
+io.on("connection", (socket) => {
+  console.log("🔌 A user connected");
+
+  socket.on("joinGroup", (groupName) => {
+    socket.join(groupName);
+    console.log(`🟢 User joined group: ${groupName}`);
+  });
+
+  socket.on("sendMessage", async (data) => {
+    const timestamp = Date.now(); // ✅ consistent timestamp
+  
+    const newMessage = new Message({
+      sender: data.regNumber,
+      name: data.name,
+      group: data.group,
+      message: data.message,
+      timestamp: timestamp, // ✅ Save correct timestamp in DB
+    });
+  
+    await newMessage.save();
+  
+    io.to(data.group).emit("newMessage", {
+      regNumber: data.regNumber,
+      name: data.name,
+      group: data.group,
+      message: data.message,
+      timestamp: timestamp, // ✅ Send same timestamp to frontend
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 A user disconnected");
+  });
+});
+
