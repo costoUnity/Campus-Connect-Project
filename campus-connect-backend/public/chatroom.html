@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <title>Chatroom</title>
   <style>
     body {
@@ -96,6 +97,39 @@
     .input-area button:hover {
       background-color: #0b7b6c;
     }
+
+    .message.you {
+  cursor: pointer;
+}
+
+.context-menu {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  z-index: 999;
+  padding: 5px 0;
+  width: 120px;
+  display: none;
+  flex-direction: column;
+}
+
+.context-menu button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.context-menu button:hover {
+  background-color: #f0f0f0;
+}
+
+
   </style>
 </head>
 <body>
@@ -108,95 +142,167 @@
     </div>
   </div>
 
+  <!-- For the extra option UI -->
+  <div id="contextMenu" class="context-menu">
+    <button onclick="handleCopy()">📋 Copy</button>
+    <button onclick="handleDelete()">🗑️ Delete</button>
+  </div>
+  
+
   <script>
+    const socket = io("http://localhost:5020"); // ✅ Connect to server
     const user = JSON.parse(localStorage.getItem("user"));
     const urlParams = new URLSearchParams(window.location.search);
     const group = urlParams.get("group");
-
+  
     if (!user || !group) {
-      window.location.href = "/dashboard.html"; // Redirect if user or group not found
+      window.location.href = "/dashboard.html";
     }
-
+  
     document.getElementById("chatTitle").innerText = group;
+  
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    }
+  
+    function addMessageToUI(msg) {
+      const container = document.getElementById("messageList");
+  
+      const senderId = msg.sender?.regNumber || msg.regNumber || msg.sender;
+      const senderName = msg.sender?.name || msg.name;
+  
+      const div = document.createElement("div");
+       div.classList.add("message");
+       div.classList.add(senderId === user.regNumber ? "you" : "other");
+       div.setAttribute("data-id", msg._id); // ✅ Attach MongoDB message ID
 
-    async function loadMessages() {
-  const res = await fetch(`http://localhost:5020/api/group/${group}`); // Fetch messages for the group
-  const data = await res.json();
-  const container = document.getElementById("messageList");
-  container.innerHTML = ""; // Clear current messages
-
-  //function to trim the time stamp
-  function formatTime(timestamp) {
-  const date = new Date(timestamp);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
+      div.innerHTML = `
+        <div><strong>${senderName}</strong></div>
+        <div>${msg.message}</div>
+        <div class="timestamp">${formatTime(msg.timestamp)}</div>
+      `;
+  
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    
 
 
-  if (data.success) {
-    data.group.messages.forEach((msg) => {
-  const div = document.createElement("div");
-  div.classList.add("message");
-  div.classList.add(msg.sender === user.regNumber ? "you" : "other");
-  div.innerHTML = `
-    <div><strong>${msg.name}</strong></div>
-    <div>${msg.message}</div>
-    <div class="timestamp">${formatTime(msg.timestamp)}</div>
-  `;
-  container.appendChild(div);
+
+//Delete Message Function
+async function deleteMessage(messageId) {
+  try {
+    const res = await fetch(`http://localhost:5020/api/message/${messageId}`, {
+      method: "DELETE",
     });
 
-    // Auto-scroll to bottom
-    container.scrollTop = container.scrollHeight;
+    const data = await res.json();
+    if (data.success) {
+      loadMessages(); // Refresh message list
+    } else {
+      alert("❌ Failed to delete message");
+    }
+  } catch (err) {
+    console.error("Delete error:", err);
   }
 }
 
-
+  
+    async function loadMessages() {
+      const res = await fetch(`http://localhost:5020/api/group/${group}`);
+      const data = await res.json();
+      const container = document.getElementById("messageList");
+      container.innerHTML = "";
+  
+      if (data.success) {
+        data.group.messages.forEach((msg) => addMessageToUI(msg));
+      }
+    }
+  
     async function sendMessage() {
       const input = document.getElementById("messageInput");
       const text = input.value.trim();
-      if (!text) return; // Don't send if input is empty
+      if (!text) return;
+  
+      const payload = {
+        regNumber: user.regNumber,
+        name: user.name,
+        group,
+        message: text,
+      };
+  
+      socket.emit("sendMessage", payload);
+      input.value = "";
+    }
+  
+    document.getElementById("messageInput").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") sendMessage();
+    });
+  
+    document.querySelector("button").addEventListener("click", sendMessage);
+  
+    function goToGroupInfo() {
+      window.location.href = `groupinfo.html?group=${group}`;
+    }
+  
+    socket.emit("joinGroup", group); // ✅ Join the group room
+  
+    socket.on("newMessage", (msg) => {
+      if (msg.group === group) addMessageToUI(msg);
+    });
 
-      //check the log to see if it works
-      console.log("📤 Sending message:", {
-  regNumber: user.regNumber,
-  name: user.name,
-  group,
-  message: text,
+    // for Extra Option UI
+let selectedMessageId = null;
+let selectedMessageText = "";
+
+document.addEventListener("click", () => {
+  document.getElementById("contextMenu").style.display = "none";
 });
 
+document.addEventListener("contextmenu", function (e) {
+  const messageEl = e.target.closest(".message");
 
-      await fetch("http://localhost:5020/api/send", {  // POST to send the message
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          regNumber: user.regNumber,
-          name: user.name,
-          group,
-          message: text,
-        }),
-      });
+  if (messageEl && messageEl.classList.contains("you")) {
+    e.preventDefault();
+    selectedMessageId = messageEl.getAttribute("data-id");
+    selectedMessageText = messageEl.querySelector("div:nth-child(2)").innerText;
 
-      input.value = ""; // Clear input field
-      loadMessages(); // Reload messages after sending
-    }
-
-    loadMessages(); // Load messages initially
-    setInterval(loadMessages, 3000); // Auto-refresh every 3 seconds
-
-    function goToGroupInfo() {
-      window.location.href = `groupinfo.html?group=${group}`; // Navigate to group info page
-    }
-
-    //Enter  as the send key
-    document.getElementById("messageInput").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    sendMessage();
+    const menu = document.getElementById("contextMenu");
+    menu.style.top = `${e.clientY}px`;
+    menu.style.left = `${e.clientX}px`;
+    menu.style.display = "flex";
   }
 });
 
+function handleDelete() {
+  if (selectedMessageId) {
+    socket.emit("deleteMessage", { messageId: selectedMessageId, group });
+    document.getElementById("contextMenu").style.display = "none";
+  }
+}
 
+socket.on("messageDeleted", ({ messageId }) => {
+  const messageEl = document.querySelector(`[data-id="${messageId}"]`);
+  if (messageEl) messageEl.remove();
+});
+
+
+function handleCopy() {
+  navigator.clipboard.writeText(selectedMessageText).then(() => {
+    alert("📋 Message copied!");
+    document.getElementById("contextMenu").style.display = "none";
+  });
+}
+
+  
+    loadMessages(); // Initial message load
   </script>
+  
+  
+
 </body>
 </html>

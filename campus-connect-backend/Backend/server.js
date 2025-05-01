@@ -111,8 +111,6 @@ const Group = require("./models/Group");
 
 app.get("/api/student-groups/:regNumber", async (req, res) => {
   const regNumber = req.params.regNumber;
-  //console.log("Looking for groups where:", regNumber);
-
 
   try {
     const groups = await Group.find({ members: regNumber });
@@ -121,12 +119,26 @@ app.get("/api/student-groups/:regNumber", async (req, res) => {
       return res.json({ success: false, message: "No groups found for this student." });
     }
 
-    res.json({ success: true, groups });
+    // Attach last message from Messages collection
+    const result = await Promise.all(
+      groups.map(async (group) => {
+        const lastMsg = await Message.findOne({ group: group.name }).sort({ timestamp: -1 });
+        return {
+          name: group.name,
+          type: group.type || "class", // fallback
+          lastMessage: lastMsg ? lastMsg.message : "No messages yet",
+          lastTimestamp: lastMsg ? lastMsg.timestamp : null
+        };
+      })
+    );
+
+    res.json({ success: true, groups: result });
   } catch (err) {
     console.error("Group fetch error:", err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
+
 
 
 // app.get("/api/student-groups/:regNumber", (req, res) => {
@@ -201,7 +213,6 @@ app.get('/api/group/:groupName', async (req, res) => {
 });
 
 //API to fetch the group info
-// Replace this dummy info version:
 app.get("/api/group-info/:groupName", async (req, res) => {
   const groupName = req.params.groupName;
 
@@ -212,24 +223,126 @@ app.get("/api/group-info/:groupName", async (req, res) => {
       return res.json({ success: false, message: "Group not found" });
     }
 
-    res.json({
-      success: true,
-      group: {
-        name: group.name,
-        description: `This is the ${group.name} group`, // Add description if you want
-        members: group.members.map(name => ({ name })) // Convert string[] to object[]
-      }
-    });
+    // Look up member details
+    const detailedMembers = await Promise.all(
+      group.members.map(async (regNumber) => {
+        const student = await Student.findOne({ regNumber });
+        return student ? { name: student.name, regNumber } : { name: "Unknown", regNumber };
+      })
+    );
+
+    const groupWithNames = {
+      name: group.name,
+      description: group.description,
+      members: detailedMembers
+    };
+
+    res.json({ success: true, group: groupWithNames });
+
   } catch (err) {
-    console.error("Error fetching group info:", err.message);
+    console.error("❌ Error fetching group info:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 
 
+// Update group description
+app.put("/api/group-description/:groupName", async (req, res) => {
+  const groupName = req.params.groupName;
+  const { description } = req.body;
 
-// 8. Start the server
-app.listen(port, () => {
+  try {
+    const group = await Group.findOneAndUpdate(
+      { name: groupName },
+      { description },
+      { new: true }
+    );
+
+    if (group) {
+      res.json({ success: true, message: "Description updated" });
+    } else {
+      res.json({ success: false, message: "Group not found" });
+    }
+  } catch (err) {
+    console.error("Error updating group description:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+//The Delete Message API
+app.delete("/api/message/:id", async (req, res) => {
+  try {
+    const message = await Message.findByIdAndDelete(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting message:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+// 8. Start the server with Socket.IO support
+const http = require("http");
+const { Server } = require("socket.io");
+
+const server = http.createServer(app); // 👈 Create HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: "*", // ✅ Allow frontend to connect
+    methods: ["GET", "POST"]
+  }
+});
+
+server.listen(port, () => {
   console.log(`Server is listening at http://localhost:${port}`);
 });
+
+// 👇 ADD THIS AFTER all the routes (near the end of server.js):
+io.on("connection", (socket) => {
+  console.log("🔌 A user connected");
+
+  socket.on("joinGroup", (groupName) => {
+    socket.join(groupName);
+    console.log(`🟢 User joined group: ${groupName}`);
+  });
+
+  socket.on("sendMessage", async (data) => {
+    const newMessage = new Message({
+      sender: data.regNumber,
+      name: data.name,
+      group: data.group,
+      message: data.message,
+    });
+  
+    const savedMessage = await newMessage.save();
+  
+    io.to(data.group).emit("newMessage", {
+      _id: savedMessage._id, // ✅ Include the ID
+      regNumber: data.regNumber,
+      name: data.name,
+      group: data.group,
+      message: data.message,
+      timestamp: savedMessage.timestamp, // use consistent timestamp
+    });
+  });
+
+  // ✅ Add this for real-time deletion
+  socket.on("deleteMessage", async ({ messageId, group }) => {
+    try {
+      await Message.findByIdAndDelete(messageId);
+      io.to(group).emit("messageDeleted", { messageId }); // 🔁 notify others
+    } catch (err) {
+      console.error("❌ Error deleting message:", err);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 A user disconnected");
+  });
+});
+
