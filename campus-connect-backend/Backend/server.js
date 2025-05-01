@@ -204,8 +204,21 @@ app.get('/api/group/:groupName', async (req, res) => {
   const groupName = req.params.groupName;
 
   try {
-    const messages = await Message.find({ group: groupName }).sort({ timestamp: 1 }); // oldest first
-    res.json({ success: true, group: { name: groupName, messages } });
+    const messages = await Message.find({ group: groupName }).sort({ timestamp: 1 });
+
+const processedMessages = messages.map(msg => {
+  if (msg.deleted) {
+    return {
+      ...msg._doc,
+      message: "🗑️ This message was deleted",
+      deleted: true,
+    };
+  }
+  return msg;
+});
+
+res.json({ success: true, group: { name: groupName, messages: processedMessages } });
+
   } catch (err) {
     console.error("Error fetching messages:", err.message);
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -334,12 +347,25 @@ io.on("connection", (socket) => {
   // ✅ Add this for real-time deletion
   socket.on("deleteMessage", async ({ messageId, group }) => {
     try {
-      await Message.findByIdAndDelete(messageId);
-      io.to(group).emit("messageDeleted", { messageId }); // 🔁 notify others
+      const updated = await Message.findByIdAndUpdate(
+        messageId,
+        { deleted: true, deletedAt: new Date() },
+        { new: true }
+      );
+  
+      if (updated) {
+        io.to(group).emit("messageDeleted", {
+          messageId,
+          placeholder: "🗑️ This message was deleted"
+        });
+      }
     } catch (err) {
-      console.error("❌ Error deleting message:", err);
+      console.error("❌ Error soft deleting message:", err);
     }
   });
+  
+
+  
 
   socket.on("disconnect", () => {
     console.log("🔌 A user disconnected");

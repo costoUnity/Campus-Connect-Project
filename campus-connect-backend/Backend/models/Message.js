@@ -6,7 +6,10 @@ const messageSchema = new mongoose.Schema({
   name: String,
   group: String,
   message: String,
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  deleted: { type: Boolean, default: false },       // 🆕 added
+  deletedAt: { type: Date }                         // optional
 });
 
 module.exports = mongoose.model("Message", messageSchema);
+
