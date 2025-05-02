@@ -130,6 +130,80 @@
 }
 
 
+#filePreviewModal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0,0,0,0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.preview-box {
+  background: white;
+  width: 90%;
+  max-width: 420px;
+  max-height: 60vh;
+  padding: 15px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  overflow-y: auto;
+}
+
+#previewContent {
+  width: 100%;
+  max-height: 200px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
+  border-radius: 10px;
+}
+
+#previewContent img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+
+#fileCaption {
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.preview-actions button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.preview-actions button:first-child {
+  background: #ccc;
+}
+
+.preview-actions button:last-child {
+  background: #007bff;
+  color: white;
+}
+
+
   </style>
 </head>
 <body>
@@ -137,10 +211,26 @@
     <div class="topbar" id="chatTitle" onclick="goToGroupInfo()">Loading...</div>
     <div class="messages" id="messageList"></div>
     <div class="input-area">
+      <input type="file" id="fileInput" style="display:none;" />
+  <button onclick="document.getElementById('fileInput').click()">📎</button>
       <input type="text" id="messageInput" placeholder="Type a message..." />
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
+
+  <!-- for file upload caption-->
+  <div id="filePreviewModal">
+    <div class="preview-box">
+      <div id="previewContent"></div>
+      <input type="text" id="fileCaption" placeholder="Add a caption..." />
+      <div class="preview-actions">
+        <button onclick="closePreview()">Cancel</button>
+        <button onclick="sendFileWithCaption()">Send File</button>
+      </div>
+    </div>
+  </div>
+  
+  
 
   <!-- For the extra option UI -->
   <div id="contextMenu" class="context-menu">
@@ -169,24 +259,32 @@
       const minutes = date.getMinutes().toString().padStart(2, "0");
       return `${hours}:${minutes}`;
     }
-  
-    function addMessageToUI(msg) {
+
+  //FUnction to add message to UI
+  function addMessageToUI(msg) {
   const container = document.getElementById("messageList");
 
   const senderId = msg.sender?.regNumber || msg.regNumber || msg.sender;
   const senderName = msg.sender?.name || msg.name;
+  const isDeleted = msg.deleted;
 
   const div = document.createElement("div");
   div.classList.add("message");
   div.classList.add(senderId === user.regNumber ? "you" : "other");
   div.setAttribute("data-id", msg._id);
 
-  const isDeleted = msg.deleted;
+  const isFileMessage = msg.message.includes("uploads/");
+  const downloadLink = msg.message.match(/href="([^"]+)"/)?.[1];
 
   div.innerHTML = `
     ${!isDeleted ? `<div><strong>${senderName}</strong></div>` : ""}
     <div style="${isDeleted ? 'font-style: italic; color: #888;' : ''}">
-      ${msg.message}
+      ${isFileMessage ? `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${msg.message}
+          <a href="${downloadLink}" download style="font-size:13px; color:#007bff; align-self: flex-start;">⬇️ Download</a>
+        </div>
+      ` : msg.message}
     </div>
     <div class="timestamp">${formatTime(msg.timestamp)}</div>
   `;
@@ -194,6 +292,7 @@
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
+
 
     
     
@@ -273,7 +372,78 @@ async function deleteMessage(messageId) {
       socket.emit("sendMessage", payload);
       input.value = "";
     }
+
+    //function to upload file 
+    document.getElementById("fileInput").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const modal = document.getElementById("filePreviewModal");
+  const previewContent = document.getElementById("previewContent");
+
+  modal.style.display = "flex";
+  previewContent.innerHTML = "";
+
+  if (file.type.startsWith("image/")) {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    previewContent.appendChild(img);
+  } else {
+    const docIcon = document.createElement("div");
+    docIcon.innerHTML = `📄 <strong>${file.name}</strong>`;
+    docIcon.style.fontSize = "15px";
+    docIcon.style.padding = "10px";
+    previewContent.appendChild(docIcon);
+  }
+});
+
+//helper function for file preview
+function closePreview() {
+  document.getElementById("filePreviewModal").style.display = "none";
+  document.getElementById("fileCaption").value = "";
+  document.getElementById("fileInput").value = "";
+}
+
+
+
   
+//FUnction to send file with caption
+async function sendFileWithCaption() {
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+  const caption = document.getElementById("fileCaption").value.trim();
+
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("group", group);
+  formData.append("regNumber", user.regNumber);
+  formData.append("name", user.name);
+  formData.append("caption", caption); // 👈 send caption
+
+  try {
+    const res = await fetch("http://localhost:5020/api/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      console.log("✅ File with caption sent!");
+      document.getElementById("filePreviewBox").style.display = "none";
+      document.getElementById("fileInput").value = "";
+      document.getElementById("fileCaption").value = "";
+    } else {
+      alert("❌ Failed to upload file.");
+    }
+  } catch (err) {
+    console.error("❌ Upload error:", err);
+  }
+}
+
+
+//
     document.getElementById("messageInput").addEventListener("keypress", function (e) {
       if (e.key === "Enter") sendMessage();
     });

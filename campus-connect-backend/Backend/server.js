@@ -40,6 +40,9 @@ app.use(express.json());
 
 app.use(express.static("public"));
 
+// Serve uploads folder
+
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 
 
@@ -418,6 +421,40 @@ app.post("/api/update-last-seen", async (req, res) => {
   }
 });
 
+// API for file uploads 
+const multer = require("multer");
+const path = require("path");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "public/uploads")); // <-- must exist!
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({ storage });
+
+// API Route fo file upload
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  const { group, regNumber, name, caption = "" } = req.body;
+  const fileUrl = `http://localhost:5020/uploads/${req.file.filename}`;
+
+  const newMessage = new Message({
+    sender: regNumber,
+    name,
+    group,
+    message: `📎 <a href="${fileUrl}" target="_blank">${req.file.originalname}</a><br/>${caption}`,
+    timestamp: new Date()
+  });
+
+  await newMessage.save();
+  io.to(group).emit("newMessage", newMessage);
+
+  res.json({ success: true });
+});
 
 
 
