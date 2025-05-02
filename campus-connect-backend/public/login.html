@@ -134,7 +134,8 @@
             localStorage.setItem("user", JSON.stringify({
   name: data.name,
   regNumber: regNumber,
-  group: data.group
+  group: data.group,
+  lastSeen: data.lastSeen || {}
 }));
 
             setTimeout(() => {

@@ -108,6 +108,7 @@ app.post("/api/login", async (req, res) => {
       name: student.name,
       regNumber: student.regNumber,
       group: groupName,
+      lastSeen: student.lastSeen || {}
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -387,6 +388,38 @@ io.on("connection", (socket) => {
       timestamp: savedMessage.timestamp, // use consistent timestamp
     });
   });
+
+//To check last seen
+app.post("/api/update-last-seen", async (req, res) => {
+  const { regNumber, group, timestamp } = req.body;
+
+  if (!regNumber || !group || !timestamp) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  try {
+    const student = await Student.findOne({ regNumber });
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
+    // ✅ Use Map.set for groupLastSeen
+    student.groupLastSeen.set(group, new Date(timestamp));
+
+    await student.save();
+
+    // ✅ Optionally return the updated student
+    res.json({ success: true, updatedUser: student });
+
+  } catch (err) {
+    console.error("❌ Error updating groupLastSeen:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
 
   // ✅ Add this for real-time deletion
   socket.on("deleteMessage", async ({ messageId, group }) => {

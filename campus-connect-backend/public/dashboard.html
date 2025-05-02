@@ -119,6 +119,7 @@
 
   <script>
     const user = JSON.parse(localStorage.getItem("user"));
+   console.log(localStorage.getItem("user"));
     if (!user) {
       window.location.href = "/login.html";
     }
@@ -161,17 +162,28 @@
             title.textContent = types[type];
             section.appendChild(title);
 
-            grouped[type].forEach(async groupName => {
+  //function
+  grouped[type].forEach(async groupName => {
   const groupDiv = document.createElement("div");
   groupDiv.classList.add("group");
 
-  // Fetch messages for the group
   const msgRes = await fetch(`http://localhost:5020/api/group/${groupName}`);
   const msgData = await msgRes.json();
   const messages = msgData.success ? msgData.group.messages : [];
 
-  const lastMessage = messages.length ? messages[messages.length - 1].message : "No messages yet";
-  const unreadCount = Math.floor(Math.random() * 5); // 🔁 Replace with real logic later
+  let lastMessage = "No messages yet";
+if (messages.length) {
+  const last = messages[messages.length - 1];
+  lastMessage = `${last.name || "Unknown"}: ${last.message}`;
+}
+
+
+const lastSeen = user.groupLastSeen?.[groupName] ? new Date(user.groupLastSeen[groupName]) : null;
+const unreadCount = messages.filter(msg => {
+  const msgTime = new Date(msg.timestamp);
+  return !lastSeen || msgTime > lastSeen;
+}).length;
+
 
   groupDiv.innerHTML = `
     <div class="group-header">
@@ -184,6 +196,7 @@
   groupDiv.onclick = () => goToChat(groupName);
   section.appendChild(groupDiv);
 });
+
 
 
             container.appendChild(section);
