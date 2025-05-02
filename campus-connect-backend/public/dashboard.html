@@ -1,7 +1,11 @@
 <style>
+  * {
+    box-sizing: border-box;
+  }
+
   body {
-    font-family: "Segoe UI", sans-serif;
-    background-color: #ece5dd;
+    font-family: "Inter", sans-serif;
+    background: #f7f9fc;
     margin: 0;
     padding: 0;
     display: flex;
@@ -10,61 +14,39 @@
 
   .app {
     width: 100%;
-    max-width: 420px;
+    max-width: 480px;
     background-color: #ffffff;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
   }
 
   .topbar {
-    background-color: #075E54;
+    background-color: #1e3a8a;
     color: white;
-    padding: 15px 20px;
-    font-size: 20px;
-    font-weight: bold;
+    padding: 16px 20px;
+    font-size: 18px;
+    font-weight: 600;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
 
-  .logout-btn {
-    background-color: crimson;
-    border: none;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .logout-btn:hover {
-    background-color: darkred;
+  .topbar img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
   }
 
   .section {
-    padding: 20px;
+    padding: 16px;
   }
 
   .section h4 {
-    color: #075E54;
-    font-size: 16px;
-    margin-bottom: 10px;
-  }
-
-  .group {
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    background-color: #f0f0f0;
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    cursor: pointer;
     font-size: 15px;
-    transition: background-color 0.2s;
-  }
-
-  .group:hover {
-    background-color: #dcf8c6;
+    margin-bottom: 10px;
+    color: #1e3a8a;
   }
 
   .group-list {
@@ -72,36 +54,72 @@
     overflow-y: auto;
   }
 
+  .group {
+    padding: 14px 16px;
+    background-color: #f0f4f8;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.3s;
+    border: 1px solid transparent;
+  }
+
+  .group:hover {
+    background-color: #e2e8f0;
+    transform: translateY(-1px);
+  }
+
   .group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-.group-name {
-  font-weight: bold;
-}
+  .group-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #111827;
+  }
 
-.group-preview {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .unread-count {
+    background-color: #ef4444;
+    color: white;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+  }
 
-.unread-count {
-  background-color: #25D366;
-  color: white;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 12px;
-  margin-left: 6px;
-}
+  .group-preview {
+    font-size: 13px;
+    color: #4b5563;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
+  /* Responsive padding */
+  @media (max-width: 500px) {
+    .section {
+      padding: 12px;
+    }
 
+    .group {
+      padding: 12px 14px;
+    }
+
+    .topbar {
+      font-size: 16px;
+      padding: 14px;
+    }
+
+    .group-name {
+      font-size: 14px;
+    }
+  }
 </style>
+
 
 <body>
   <div class="app">
