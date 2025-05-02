@@ -5,32 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Profile - Campus Connect</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+  
     body {
-      font-family: Arial, sans-serif;
-      background-color: #ece5dd;
+      font-family: 'Inter', sans-serif;
+      background-color: #f7f9fc;
       margin: 0;
       display: flex;
       justify-content: center;
     }
-
+  
     .profile-container {
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       background-color: white;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 0 12px rgba(0,0,0,0.05);
     }
-
+  
     .topbar {
-      background-color: #075E54;
+      background-color: #1e3a8a;
       color: white;
-      padding: 15px;
+      padding: 16px 20px;
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 600;
       text-align: center;
     }
-
+  
     .profile-content {
       padding: 30px 20px;
       display: flex;
@@ -38,42 +43,61 @@
       align-items: center;
       flex: 1;
     }
-
+  
     .avatar {
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      background-color: #ccc;
+      background-color: #cbd5e1;
       background-size: cover;
       background-position: center;
       margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-
+  
     .info {
-      font-size: 16px;
-      margin-bottom: 12px;
+      font-size: 15px;
+      margin-bottom: 14px;
       text-align: center;
+      color: #1e293b;
     }
-
+  
     .label {
-      font-weight: bold;
-      color: #075E54;
+      font-weight: 600;
+      color: #1e3a8a;
     }
-
+  
     .edit-btn {
       margin-top: 30px;
-      background-color: #4CAF50;
+      background-color: #1e3a8a;
       color: white;
       border: none;
       padding: 10px 20px;
-      border-radius: 5px;
+      font-size: 14px;
+      border-radius: 6px;
       cursor: pointer;
+      transition: background-color 0.2s ease;
     }
-
+  
     .edit-btn:hover {
-      background-color: #3e8e41;
+      background-color: #334155;
+    }
+  
+    @media (max-width: 500px) {
+      .topbar {
+        font-size: 16px;
+      }
+  
+      .info {
+        font-size: 14px;
+      }
+  
+      .edit-btn {
+        padding: 10px 16px;
+      }
     }
   </style>
+  
 </head>
 <body>
   <div class="profile-container">
