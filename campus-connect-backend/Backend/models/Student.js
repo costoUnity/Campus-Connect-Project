@@ -10,9 +10,14 @@ const StudentSchema = new mongoose.Schema({
     faculty: String,
     year: String
   },
-  profilePic: { type: String, default: "" } // For profile picture URL (optional for now)
+  profilePic: { type: String, default: "" },
+
+  // ✅ New field to track when student last opened each group
+  groupLastSeen: {
+    type: Map,
+    of: Date,
+    default: {}
+  }
 });
 
 module.exports = mongoose.model('Student', StudentSchema, 'students');
-
-//module.exports = mongoose.model('Student', StudentSchema);

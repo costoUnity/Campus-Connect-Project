@@ -154,6 +154,8 @@
     const user = JSON.parse(localStorage.getItem("user"));
     const urlParams = new URLSearchParams(window.location.search);
     const group = urlParams.get("group");
+    console.log("🔍 Group from URL:", group);
+
   
     if (!user || !group) {
       window.location.href = "/dashboard.html";
@@ -216,7 +218,7 @@ async function deleteMessage(messageId) {
   }
 }
 
-  
+  // Function to load message
     async function loadMessages() {
       const res = await fetch(`http://localhost:5020/api/group/${group}`);
       const data = await res.json();
@@ -225,8 +227,36 @@ async function deleteMessage(messageId) {
   
       if (data.success) {
         data.group.messages.forEach((msg) => addMessageToUI(msg));
+        await updateLastSeen(); // 👈 Call it
       }
     }
+
+
+    // FUnction to update lastseen
+    async function updateLastSeen() {
+  try {
+    const res = await fetch("http://localhost:5020/api/update-last-seen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        regNumber: user.regNumber,
+        group,
+        timestamp: new Date()
+      })
+    });
+
+    const data = await res.json();
+    if (data.success && data.updatedUser) {
+      localStorage.setItem("user", JSON.stringify(data.updatedUser)); // ✅ Update localStorage
+    }
+  } catch (err) {
+    console.error("❌ Failed to update last seen:", err);
+  }
+}
+
+
+
+
   
     async function sendMessage() {
       const input = document.getElementById("messageInput");
@@ -254,7 +284,6 @@ async function deleteMessage(messageId) {
       window.location.href = `groupinfo.html?group=${group}`;
     }
   
-    socket.emit("joinGroup", group); // ✅ Join the group room
   
     socket.on("newMessage", (msg) => {
       if (msg.group === group) addMessageToUI(msg);
@@ -312,8 +341,25 @@ function handleCopy() {
   });
 }
 
-  
-    loadMessages(); // Initial message load
+async function init() {
+  socket.emit("joinGroup", group); // ✅ Join the group room
+
+  // ✅ Update last seen when entering the chatroom
+  await fetch("http://localhost:5020/api/update-last-seen", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      regNumber: user.regNumber,
+      group: group,
+      timestamp: new Date()
+    })
+  });
+
+  loadMessages(); // ✅ Load messages after updating last seen
+}
+
+init(); // 🔥 Call it once at the end
+
   </script>
   
   
