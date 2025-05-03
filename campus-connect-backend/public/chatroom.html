@@ -268,8 +268,16 @@
     <button onclick="handleDelete()">🗑️ Delete</button>
   </div>
   
+  <div id="offlineNotice" style="display:none; padding:10px; background:#f8d7da; color:#721c24; text-align:center;">
+    You're offline. Showing cached messages.
+  </div>
+  
 
   <script>
+
+
+
+
     const socket = io("http://localhost:5020"); // ✅ Connect to server
     const user = JSON.parse(localStorage.getItem("user"));
     const urlParams = new URLSearchParams(window.location.search);
@@ -355,18 +363,51 @@ async function deleteMessage(messageId) {
   }
 }
 
+
+
+
+
   // Function to load message
-    async function loadMessages() {
-      const res = await fetch(`http://localhost:5020/api/group/${group}`);
-      const data = await res.json();
-      const container = document.getElementById("messageList");
+  async function loadMessages() {
+  const container = document.getElementById("messageList");
+  container.innerHTML = "<p>Loading messages...</p>";
+
+  // 1. Show locally cached messages first
+  const cached = localStorage.getItem(`chat_${group}`);
+  if (cached) {
+    const cachedMessages = JSON.parse(cached);
+    container.innerHTML = "";
+    cachedMessages.forEach((msg) => addMessageToUI(msg));
+  }
+
+  // 2. Fetch latest messages from server
+  try {
+    const res = await fetch(`http://localhost:5020/api/group/${group}`);
+    const data = await res.json();
+
+    if (data.success && data.group?.messages?.length) {
+      const messages = data.group.messages;
+
+      // Save to cache
+      localStorage.setItem(`chat_${group}`, JSON.stringify(messages));
+
+      // Update UI with fresh messages
       container.innerHTML = "";
-  
-      if (data.success) {
-        data.group.messages.forEach((msg) => addMessageToUI(msg));
-        await updateLastSeen(); // 👈 Call it
-      }
+      messages.forEach((msg) => addMessageToUI(msg));
+
+      await updateLastSeen();
+    } else if (!cached) {
+      // No server data and no cache
+      container.innerHTML = "<p>No messages found in this group.</p>";
     }
+  } catch (err) {
+    console.warn("🛑 Offline or server error", err);
+    if (!cached) {
+      container.innerHTML = "<p>You're offline. No message history is available.</p>";
+    }
+  }
+}
+
 
 
     // FUnction to update lastseen
@@ -394,7 +435,7 @@ async function deleteMessage(messageId) {
 
 
 
-  
+  //FUnctio to send messages
     async function sendMessage() {
       const input = document.getElementById("messageInput");
       const text = input.value.trim();
@@ -434,6 +475,12 @@ async function deleteMessage(messageId) {
     previewContent.appendChild(docIcon);
   }
 });
+
+//Alert user if offline
+if (!navigator.onLine) {
+  document.getElementById("offlineNotice").style.display = "block";
+}
+
 
 //helper function for file preview
 function closePreview() {

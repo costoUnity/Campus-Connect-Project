@@ -148,84 +148,116 @@
     }
 
     async function loadUserGroups() {
-      const res = await fetch(`http://localhost:5020/api/student-groups/${encodeURIComponent(user.regNumber)}`)
-      ;
-      const data = await res.json();
-      const container = document.getElementById("groupContainer");
-      container.innerHTML = "";
+  const container = document.getElementById("groupContainer");
+  container.innerHTML = "<p>Loading groups...</p>";
 
-      if (data.success) {
-        const grouped = {
-          class: [],
-          school: [],
-          club: []
-        };
+  const regNumber = encodeURIComponent(user.regNumber);
+  const groupCacheKey = `groups_${regNumber}`;
+  const messageCacheKeyPrefix = `group_msgs_`;
 
-        const types = {
-          class: "📚 Class Group",
-          school: "🏛️ Official School Group",
-          club: "🎓 Clubs & Societies"
-        };
+  let data;
+  try {
+    const res = await fetch(`http://localhost:5020/api/student-groups/${regNumber}`);
+    data = await res.json();
 
-        data.groups.forEach(group => {
-          grouped[group.type].push(group.name);
+    if (data.success) {
+      // Cache the group list
+      localStorage.setItem(groupCacheKey, JSON.stringify(data.groups));
+    }
+  } catch (err) {
+    console.warn("Offline or server error – loading group list from cache");
+    const cached = localStorage.getItem(groupCacheKey);
+    if (cached) {
+      data = { success: true, groups: JSON.parse(cached) };
+    } else {
+      container.innerHTML = "<p style='padding: 20px;'>You're offline and no group data is cached.</p>";
+      return;
+    }
+  }
+
+  if (data.success) {
+    const grouped = {
+      class: [],
+      school: [],
+      club: []
+    };
+
+    const types = {
+      class: "📚 Class Group",
+      school: "🏛️ Official School Group",
+      club: "🎓 Clubs & Societies"
+    };
+
+    data.groups.forEach(group => {
+      grouped[group.type].push(group.name);
+    });
+
+    container.innerHTML = "";
+
+    for (let type in grouped) {
+      if (grouped[type].length > 0) {
+        const section = document.createElement("div");
+        section.classList.add("section");
+
+        const title = document.createElement("h4");
+        title.textContent = types[type];
+        section.appendChild(title);
+
+        grouped[type].forEach(async groupName => {
+          const groupDiv = document.createElement("div");
+          groupDiv.classList.add("group");
+
+          let messages = [];
+          try {
+            const msgRes = await fetch(`http://localhost:5020/api/group/${groupName}`);
+            const msgData = await msgRes.json();
+            messages = msgData.success ? msgData.group.messages : [];
+
+            // Cache group messages
+            localStorage.setItem(`${messageCacheKeyPrefix}${groupName}`, JSON.stringify(messages));
+          } catch (err) {
+            console.warn(`Offline: loading messages for ${groupName} from cache`);
+            const cachedMsgs = localStorage.getItem(`${messageCacheKeyPrefix}${groupName}`);
+            if (cachedMsgs) {
+              messages = JSON.parse(cachedMsgs);
+            }
+          }
+
+          let lastMessage = "No messages yet";
+          if (messages.length) {
+            const last = messages[messages.length - 1];
+            lastMessage = `${last.name || "Unknown"}: ${last.message}`;
+          }
+
+          const lastSeen = user.groupLastSeen?.[groupName] ? new Date(user.groupLastSeen[groupName]) : null;
+          const unreadCount = messages.filter(msg => {
+            const msgTime = new Date(msg.timestamp);
+            return !lastSeen || msgTime > lastSeen;
+          }).length;
+
+          groupDiv.innerHTML = `
+            <div class="group-header">
+              <span class="group-name">${groupName}</span>
+              ${unreadCount > 0 ? `<span class="unread-count">${unreadCount}</span>` : ""}
+            </div>
+            <div class="group-preview">${lastMessage}</div>
+          `;
+
+          groupDiv.onclick = () => goToChat(groupName);
+          section.appendChild(groupDiv);
         });
 
-        for (let type in grouped) {
-          if (grouped[type].length > 0) {
-            const section = document.createElement("div");
-            section.classList.add("section");
-
-            const title = document.createElement("h4");
-            title.textContent = types[type];
-            section.appendChild(title);
-
-  //function
-  grouped[type].forEach(async groupName => {
-  const groupDiv = document.createElement("div");
-  groupDiv.classList.add("group");
-
-  const msgRes = await fetch(`http://localhost:5020/api/group/${groupName}`);
-  const msgData = await msgRes.json();
-  const messages = msgData.success ? msgData.group.messages : [];
-
-  let lastMessage = "No messages yet";
-if (messages.length) {
-  const last = messages[messages.length - 1];
-  lastMessage = `${last.name || "Unknown"}: ${last.message}`;
-}
-
-
-const lastSeen = user.groupLastSeen?.[groupName] ? new Date(user.groupLastSeen[groupName]) : null;
-const unreadCount = messages.filter(msg => {
-  const msgTime = new Date(msg.timestamp);
-  return !lastSeen || msgTime > lastSeen;
-}).length;
-
-
-  groupDiv.innerHTML = `
-    <div class="group-header">
-      <span class="group-name">${groupName}</span>
-      ${unreadCount > 0 ? `<span class="unread-count">${unreadCount}</span>` : ""}
-    </div>
-    <div class="group-preview">${lastMessage}</div>
-  `;
-
-  groupDiv.onclick = () => goToChat(groupName);
-  section.appendChild(groupDiv);
-});
-
-
-
-            container.appendChild(section);
-          }
-        }
-      } else {
-        container.innerHTML = "<p style='padding: 20px;'>Unable to load groups.</p>";
+        container.appendChild(section);
       }
     }
+  } else {
+    container.innerHTML = "<p style='padding: 20px;'>Unable to load groups.</p>";
+  }
+}
 
+//Some to go to a group chats
     function goToChat(groupName) {
+      localStorage.setItem("currentGroup", groupName); // 🧠 Store it for offline use
       window.location.href = `chatroom.html?group=${groupName}`;
     }
     function goToProfile() {
