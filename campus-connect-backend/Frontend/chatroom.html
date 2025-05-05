@@ -272,9 +272,22 @@
     You're offline. Showing cached messages.
   </div>
   
+  <audio id="notification-sound" src="sounds/your-sound.mp3" preload="auto"></audio>
 
   <script>
 
+//Save message to chache
+function saveMessagesToCache(messages) {
+  localStorage.setItem(`chat_${group}`, JSON.stringify(messages));
+}
+
+function loadCachedMessages() {
+  const cached = localStorage.getItem(`chat_${group}`);
+  if (cached) {
+    const messages = JSON.parse(cached);
+    messages.forEach((msg) => addMessageToUI(msg));
+  }
+}
 
 
 
@@ -380,6 +393,12 @@ async function deleteMessage(messageId) {
     cachedMessages.forEach((msg) => addMessageToUI(msg));
   }
 
+//permision to allow notification
+if ("Notification" in window && Notification.permission !== "granted") {
+  Notification.requestPermission();
+}
+
+
   // 2. Fetch latest messages from server
   try {
     const res = await fetch(`http://localhost:5020/api/group/${group}`);
@@ -435,7 +454,7 @@ async function deleteMessage(messageId) {
 
 
 
-  //FUnctio to send messages
+  //FUnction to send messages
     async function sendMessage() {
       const input = document.getElementById("messageInput");
       const text = input.value.trim();
@@ -542,6 +561,11 @@ async function sendFileWithCaption() {
   
     socket.on("newMessage", (msg) => {
       if (msg.group === group) addMessageToUI(msg);
+      const cacheKey = `chat_${group}`;
+const cached = JSON.parse(localStorage.getItem(cacheKey)) || [];
+cached.push(msg);
+saveMessagesToCache(cached);
+
     });
 
     // for Extra Option UI
@@ -595,6 +619,22 @@ function handleCopy() {
     document.getElementById("contextMenu").style.display = "none";
   });
 }
+//
+
+function saveMessagesToCache(messages) {
+  localStorage.setItem(`chat_${group}`, JSON.stringify(messages));
+}
+
+function loadCachedMessages() {
+  const cached = localStorage.getItem(`chat_${group}`);
+  if (cached) {
+    const messages = JSON.parse(cached);
+    messages.forEach((msg) => addMessageToUI(msg));
+  }
+}
+
+
+//
 
 async function init() {
   socket.emit("joinGroup", group); // ✅ Join the group room
@@ -610,10 +650,26 @@ async function init() {
     })
   });
 
+  //event listener
+  window.addEventListener("offline", () => {
+  document.getElementById("offlineNotice").style.display = "block";
+});
+
+window.addEventListener("online", () => {
+  document.getElementById("offlineNotice").style.display = "none";
+  loadMessages();
+});
+
+  //
   loadMessages(); // ✅ Load messages after updating last seen
 }
 
 init(); // 🔥 Call it once at the end
+
+loadCachedMessages();  // Show old messages from cache first
+if (navigator.onLine) {
+  loadMessages();      // Then try to fetch fresh ones if online
+}
 
   </script>
   
