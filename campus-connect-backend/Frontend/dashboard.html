@@ -1,0 +1,271 @@
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Inter", sans-serif;
+    background: #f7f9fc;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+    background-color: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .topbar {
+    background-color: #1e3a8a;
+    color: white;
+    padding: 16px 20px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .topbar img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+
+  .section {
+    padding: 16px;
+  }
+
+  .section h4 {
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: #1e3a8a;
+  }
+
+  .group-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .group {
+    padding: 14px 16px;
+    background-color: #f0f4f8;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.3s;
+    border: 1px solid transparent;
+  }
+
+  .group:hover {
+    background-color: #e2e8f0;
+    transform: translateY(-1px);
+  }
+
+  .group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .group-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #111827;
+  }
+
+  .unread-count {
+    background-color: #ef4444;
+    color: white;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+  }
+
+  .group-preview {
+    font-size: 13px;
+    color: #4b5563;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Responsive padding */
+  @media (max-width: 500px) {
+    .section {
+      padding: 12px;
+    }
+
+    .group {
+      padding: 12px 14px;
+    }
+
+    .topbar {
+      font-size: 16px;
+      padding: 14px;
+    }
+
+    .group-name {
+      font-size: 14px;
+    }
+  }
+</style>
+
+
+<body>
+  <div class="app">
+    <div class="topbar">
+      <span>Campus Connect</span>
+      <div> 
+        <img src="https://i.imgur.com/OC5B7Ml.png" onclick="goToProfile()" style="cursor:pointer;" alt="Profile" />
+      </div>
+    </div>
+
+    <div class="group-list" id="groupContainer">
+      <p style="padding: 20px;">Loading groups...</p>
+    </div>
+    
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+   console.log(localStorage.getItem("user"));
+    if (!user) {
+      window.location.href = "/index.html";
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "index.html";
+    }
+
+    async function loadUserGroups() {
+  const container = document.getElementById("groupContainer");
+  container.innerHTML = "<p>Loading groups...</p>";
+
+  const regNumber = encodeURIComponent(user.regNumber);
+  const groupCacheKey = `groups_${regNumber}`;
+  const messageCacheKeyPrefix = `group_msgs_`;
+
+  let data;
+  try {
+    const res = await fetch(`http://localhost:5020/api/student-groups/${regNumber}`);
+    data = await res.json();
+
+    if (data.success) {
+      // Cache the group list
+      localStorage.setItem(groupCacheKey, JSON.stringify(data.groups));
+    }
+  } catch (err) {
+    console.warn("Offline or server error – loading group list from cache");
+    const cached = localStorage.getItem(groupCacheKey);
+    if (cached) {
+      data = { success: true, groups: JSON.parse(cached) };
+    } else {
+      container.innerHTML = "<p style='padding: 20px;'>You're offline and no group data is cached.</p>";
+      return;
+    }
+  }
+
+  if (data.success) {
+    const grouped = {
+      class: [],
+      school: [],
+      club: []
+    };
+
+    const types = {
+      class: "📚 Class Group",
+      school: "🏛️ Official School Group",
+      club: "🎓 Clubs & Societies"
+    };
+
+    data.groups.forEach(group => {
+      grouped[group.type].push(group.name);
+    });
+
+    container.innerHTML = "";
+
+    for (let type in grouped) {
+      if (grouped[type].length > 0) {
+        const section = document.createElement("div");
+        section.classList.add("section");
+
+        const title = document.createElement("h4");
+        title.textContent = types[type];
+        section.appendChild(title);
+
+        grouped[type].forEach(async groupName => {
+          const groupDiv = document.createElement("div");
+          groupDiv.classList.add("group");
+
+          let messages = [];
+          try {
+            const msgRes = await fetch(`http://localhost:5020/api/group/${groupName}`);
+            const msgData = await msgRes.json();
+            messages = msgData.success ? msgData.group.messages : [];
+
+            // Cache group messages
+            localStorage.setItem(`${messageCacheKeyPrefix}${groupName}`, JSON.stringify(messages));
+          } catch (err) {
+            console.warn(`Offline: loading messages for ${groupName} from cache`);
+            const cachedMsgs = localStorage.getItem(`${messageCacheKeyPrefix}${groupName}`);
+            if (cachedMsgs) {
+              messages = JSON.parse(cachedMsgs);
+            }
+          }
+
+          let lastMessage = "No messages yet";
+          if (messages.length) {
+            const last = messages[messages.length - 1];
+            lastMessage = `${last.name || "Unknown"}: ${last.message}`;
+          }
+
+          const lastSeen = user.groupLastSeen?.[groupName] ? new Date(user.groupLastSeen[groupName]) : null;
+          const unreadCount = messages.filter(msg => {
+            const msgTime = new Date(msg.timestamp);
+            return !lastSeen || msgTime > lastSeen;
+          }).length;
+
+          groupDiv.innerHTML = `
+            <div class="group-header">
+              <span class="group-name">${groupName}</span>
+              ${unreadCount > 0 ? `<span class="unread-count">${unreadCount}</span>` : ""}
+            </div>
+            <div class="group-preview">${lastMessage}</div>
+          `;
+
+          groupDiv.onclick = () => goToChat(groupName);
+          section.appendChild(groupDiv);
+        });
+
+        container.appendChild(section);
+      }
+    }
+  } else {
+    container.innerHTML = "<p style='padding: 20px;'>Unable to load groups.</p>";
+  }
+}
+
+//Some to go to a group chats
+    function goToChat(groupName) {
+      localStorage.setItem("currentGroup", groupName); // 🧠 Store it for offline use
+      window.location.href = `chatroom.html?group=${groupName}`;
+    }
+    function goToProfile() {
+  window.location.href = "studentprofile.html";
+}
+
+
+    loadUserGroups();
+  </script>
+</body>
